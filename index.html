@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>GHL PowerBI Router</title>
+  <title>Power BI Router (Hardcoded)</title>
   <style>
     html,body { height:100%; margin:0; font-family: Arial, Helvetica, sans-serif; }
     iframe { width:100%; height:100vh; border:0; }
@@ -18,18 +18,11 @@ const USER_DASHBOARD_MAP = {
   "basitmckinneyandco@gmail.com": "https://app.powerbi.com/view?r=eyJrIjoiZjY2OGUxMDctYjgyMS00NGRkLThkYjAtYWQzZGEyMDY3MDIzIiwidCI6ImE3YTY2OWZlLWMxNDktNDNkYS04OTAyLTIxMDdhNWFkYjJiZCIsImMiOjl9",
   "zara@mckinneyandco.com": "https://app.powerbi.com/view?r=REPLACE_WITH_ZARA_LINK"
 };
-/* ---------------------------------------------------------------- */
 
-function getQueryParams() {
-  const q = {};
-  const raw = location.search.replace(/^\?/, '');
-  raw.split('&').forEach(pair => {
-    if (!pair) return;
-    const [k, v] = pair.split('=');
-    q[decodeURIComponent(k)] = v ? decodeURIComponent(v) : '';
-  });
-  return q;
-}
+/* -------------- CHANGE THIS LINE TO TEST DIFFERENT USERS -------------- */
+// Hardcode which user is "logged in" (simulate GHL login)
+const CURRENT_USER_EMAIL = "basitmckinneyandco@gmail.com";
+/* ---------------------------------------------------------------------- */
 
 function showDenied(){
   document.getElementById('content').innerHTML =
@@ -41,11 +34,9 @@ function showIframe(url){
     `<iframe src="${url}" allowfullscreen></iframe>`;
 }
 
-// Main
-const qp = getQueryParams();
-const email = qp.email ? qp.email.toLowerCase() : null;
-
-if(email && USER_DASHBOARD_MAP[email]){
+// Router
+const email = CURRENT_USER_EMAIL.toLowerCase();
+if (USER_DASHBOARD_MAP[email]) {
   showIframe(USER_DASHBOARD_MAP[email]);
 } else {
   showDenied();
