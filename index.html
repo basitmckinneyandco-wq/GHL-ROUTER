@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Power BI Router</title>
+  </head>
+  <body>
+    <div id="dashboard"></div>
+
+    <script>
+      // Example: Replace with real GHL login email detection later
+      const userEmail = "basit@mckinneyandco.com"; 
+
+      // Map users to their Power BI publish-to-web links
+      const links = {
+        "basit@mckinneyandco.com": "https://app.powerbi.com/view?r=eyJrIjoiZjY2OGUxMDctYjgyMS00NGRkLThkYjAtYWQzZGEyMDY3MDIzIiwidCI6ImE3YTY2OWZlLWMxNDktNDNkYS04OTAyLTIxMDdhNWFkYjJiZCIsImMiOjl9",
+        "zara@mckinneyandco.com": "https://app.powerbi.com/view?r=YYY", 
+      };
+
+      // Pick the right dashboard
+      const url = links[userEmail];
+
+      if (url) {
+        document.getElementById("dashboard").innerHTML =
+          `<iframe width="100%" height="800" src="${url}" frameborder="0" allowfullscreen></iframe>`;
+      } else {
+        document.getElementById("dashboard").innerText =
+          "❌ You are not authorized to view a dashboard.";
+      }
+    </script>
+  </body>
+</html>
