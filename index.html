@@ -8,135 +8,59 @@
     #wrap { height:100%; display:flex; align-items:center; justify-content:center; }
     iframe { width:100%; height:100vh; border:0; }
     .denied { color:#b00; text-align:center; padding:30px; }
-    .debug { position:fixed; right:10px; top:10px; background:#fff8; padding:8px; border-radius:6px; font-size:12px; z-index:9999; }
   </style>
 </head>
 <body>
   <div id="wrap">
     <div id="content">Loading…</div>
   </div>
-  <div id="debug" class="debug" style="display:none;"></div>
 
 <script>
-/* ---------- Configuration: put your users & publish-to-web links here ---------- */
+/* ---------- Configuration: map each email to their Power BI dashboard ---------- */
 const USER_DASHBOARD_MAP = {
   "basitmckinneyandco@gmail.com": "https://app.powerbi.com/view?r=eyJrIjoiZjY2OGUxMDctYjgyMS00NGRkLThkYjAtYWQzZGEyMDY3MDIzIiwidCI6ImE3YTY2OWZlLWMxNDktNDNkYS04OTAyLTIxMDdhNWFkYjJiZCIsImMiOjl9",
-  "zara@mckinneyandco.com": "https://app.powerbi.com/view?r=REPLACE_WITH_ZARA_LINK"
+  "zara@mckinneyandco.com": "https://app.powerbi.com/view?r=REPLACE_WITH_ZARA_LINK",
+  "karimckinneyandco@gmail.com": "https://app.powerbi.com/view?r=REPLACE_WITH_KARIM_LINK"
 };
 /* ------------------------------------------------------------------------------ */
 
-const debugEl = document.getElementById('debug');
-function debug(msg){
-  try { console.log('[GHL-ROUTER]', msg); } catch(e){}
-  debugEl.style.display = 'block';
-  debugEl.innerText = (debugEl.innerText ? debugEl.innerText + '\n' : '') + msg;
-}
-
-// Simple JWT decode (no verification) to extract payload
-function decodeJwt(token){
-  try {
-    const parts = token.split('.');
-    if(parts.length < 2) return null;
-    const payload = parts[1].replace(/-/g,'+').replace(/_/g,'/');
-    const json = decodeURIComponent(atob(payload).split('').map(function(c){
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-    return JSON.parse(json);
-  } catch(e) { return null; }
-}
-
-// Check URL query params
+// get query params
 function getQueryParams() {
   const q = {};
-  const raw = location.search.replace(/^\?/,'');
-  raw.split('&').forEach(pair=>{
-    if(!pair) return;
-    const [k,v] = pair.split('=');
+  const raw = location.search.replace(/^\?/, '');
+  raw.split('&').forEach(pair => {
+    if (!pair) return;
+    const [k, v] = pair.split('=');
     q[decodeURIComponent(k)] = v ? decodeURIComponent(v) : '';
   });
   return q;
 }
 
-function showDenied(){
-  document.getElementById('content').innerHTML = '<div class="denied">🚫 Access Denied — you are not authorized to view this dashboard.</div>';
+// show error
+function showDenied() {
+  document.getElementById('content').innerHTML =
+    '<div class="denied">🚫 Access Denied — you are not authorized to view this dashboard.</div>';
 }
 
-function showIframe(url){
+// show dashboard iframe
+function showIframe(url) {
   document.getElementById('content').innerHTML = `<iframe src="${url}" allowfullscreen></iframe>`;
 }
 
-// Main router: given an email, pick link or deny
-function routeByEmail(email){
-  if(!email){ debug('No email provided to router'); showDenied(); return; }
-  debug('Routing for email: ' + email);
+// main logic
+const qp = getQueryParams();
+const email = qp.email || qp.user_email || qp.ghl_email;
+
+if (email) {
   const lower = email.toLowerCase();
-  if(USER_DASHBOARD_MAP[lower]) {
+  if (USER_DASHBOARD_MAP[lower]) {
     showIframe(USER_DASHBOARD_MAP[lower]);
   } else {
-    debug('No mapping found for ' + lower);
     showDenied();
   }
-}
-
-/* ----------------- Try: 1) query param token or email ----------------- */
-const qp = getQueryParams();
-if(qp.ghl_email || qp.user_email || qp.email){
-  const e = qp.ghl_email || qp.user_email || qp.email;
-  debug('Found email in query param: ' + e);
-  routeByEmail( e );
-} else if(qp.ghl_token || qp.token || qp.access_token){
-  // sometimes GHL may pass a token in the URL. Try to decode.
-  const tok = qp.ghl_token || qp.token || qp.access_token;
-  debug('Found token in query param, attempting decode');
-  const decoded = decodeJwt(tok);
-  debug('Decoded token payload: ' + JSON.stringify(decoded));
-  const em = decoded && (decoded.email || decoded.user_email || decoded.preferred_username);
-  routeByEmail(em);
 } else {
-  debug('No query params for email or token. Attaching message listener and asking parent for user info.');
-  // 2) Listen for postMessage from parent (GHL commonly posts user context)
-  window.addEventListener('message', function(ev){
-    try {
-      debug('message event received: ' + JSON.stringify(ev.data));
-      // GHL tends to send a structured object. Try common keys:
-      const d = ev.data || {};
-      // adapt to actual structure: look for { user: { email: ... } } or { email: ... }
-      let email = null;
-      if(d.user && (d.user.email || d.user.user_email)) email = d.user.email || d.user.user_email;
-      if(!email && (d.email || d.user_email || d.preferred_username)) email = d.email || d.user_email || d.preferred_username;
-      // If message is a token:
-      if(!email && d.token) {
-        const dec = decodeJwt(d.token);
-        email = dec && (dec.email || dec.user_email || dec.preferred_username);
-      }
-      if(email) {
-        routeByEmail(email);
-      } else {
-        debug('message received but could not find email in payload');
-        // If parent gives a 'requestUser' handshake, reply to ask for info
-        if(ev.data === 'requestUserInfo') {
-          window.parent.postMessage({ request: 'pleaseSendUser' }, '*');
-        } else {
-          showDenied();
-        }
-      }
-    } catch(err){
-      debug('message handler error: ' + err);
-      showDenied();
-    }
-  }, false);
-
-  // Also request parent to send user info (some GHL shells respond)
-  try {
-    window.parent.postMessage({ request: 'pleaseSendUser' }, '*');
-  } catch(e){
-    debug('Could not postMessage to parent: ' + e);
-  }
-
-  // Last resort: show friendly message with debug hint
-  document.getElementById('content').innerHTML = '<div style="padding:20px;text-align:center">Waiting for GHL to provide the logged-in user info…<br/><small>Open DevTools Console to see messages.</small></div>';
+  showDenied();
 }
 </script>
 </body>
 </html>
-
